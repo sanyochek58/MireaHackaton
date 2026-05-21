@@ -1,0 +1,39 @@
+@use '@/styles/mixins' as *;
+
+.card {
+  @include card-surface;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
+.value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--color-navy);
+  line-height: 1.2;
+}
+
+.hint {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.success .value {
+  color: var(--color-success);
+}
+
+.warning .value {
+  color: var(--color-warning);
+}
+
+.danger .value {
+  color: var(--color-danger);
+}

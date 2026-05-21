@@ -1,0 +1,40 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+
+  h1 {
+    font-size: 32px;
+    margin-bottom: 8px;
+  }
+}
+
+.lead {
+  color: var(--color-text-muted);
+  max-width: 560px;
+  font-size: 16px;
+}
+
+.cta {
+  display: flex;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.chart {
+  margin-top: 8px;
+}

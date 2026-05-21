@@ -1,0 +1,26 @@
+:root {
+  --color-primary: #2d5bff;
+  --color-primary-hover: #1e4ae8;
+  --color-navy: #001a4d;
+  --color-text-muted: #4d5e80;
+  --color-text: #1a2b4c;
+  --color-bg: #f8fafc;
+  --color-white: #ffffff;
+  --color-card-header: #ebf2ff;
+  --color-border: #e2e8f0;
+  --color-success: #16a34a;
+  --color-warning: #d97706;
+  --color-danger: #dc2626;
+  --color-info: #0ea5e9;
+
+  --radius-sm: 6px;
+  --radius-card: 16px;
+  --radius-pill: 999px;
+
+  --shadow-card: 0 4px 24px rgba(0, 26, 77, 0.08);
+  --shadow-sm: 0 2px 8px rgba(0, 26, 77, 0.06);
+
+  --font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  --header-height: 64px;
+  --content-max-width: 1200px;
+}
