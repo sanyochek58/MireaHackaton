@@ -4,10 +4,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
+import ru.hack.orchestrator.domain.UserSshKey;
 import ru.hack.orchestrator.gateway.openstack.NovaClient;
 import ru.hack.orchestrator.gateway.openstack.OpenStackKeyInfo;
-import ru.hack.orchestrator.model.UserSshKey;
-import ru.hack.orchestrator.repository.ssh.UserSshKeyRepository;
+import ru.hack.orchestrator.repository.SshKeyRepository;
 import ru.hack.orchestrator.security.AppUser;
 
 import java.time.Instant;
@@ -29,7 +29,7 @@ public class UserSshKeyService {
     );
 
     private final NovaClient novaClient;
-    private final UserSshKeyRepository userSshKeyRepository;
+    private final SshKeyRepository sshKeyRepository;
 
     public UserSshKey uploadKey(AppUser user, String keyName, String publicKey) {
         String normalizedName = normalizeName(keyName);
@@ -37,7 +37,7 @@ public class UserSshKeyService {
         validatePublicKey(normalizedKey);
         log.info("Uploading SSH key '{}' for user {}", normalizedName, user.email());
 
-        if (userSshKeyRepository.exists(user.email(), normalizedName)) {
+        if (sshKeyRepository.existsByUserEmailAndKeyName(user.email().toLowerCase(), normalizedName)) {
             throw new ResponseStatusException(CONFLICT, "SSH key with this name already exists");
         }
 
@@ -48,17 +48,23 @@ public class UserSshKeyService {
                 imported.fingerprint(),
                 Instant.now()
         );
-        userSshKeyRepository.save(user.email(), stored);
+        sshKeyRepository.save(stored.toEntity(user.email()));
         log.info("SSH key '{}' uploaded for user {}, fingerprint={}", stored.name(), user.email(), stored.fingerprint());
         return stored;
     }
 
     public List<UserSshKey> listKeys(AppUser user) {
-        return userSshKeyRepository.findAllByUserEmail(user.email());
+        return sshKeyRepository.findAllByUserEmailOrderByUploadedAtDesc(user.email().toLowerCase())
+                .stream()
+                .map(UserSshKey::fromEntity)
+                .toList();
     }
 
     public String resolveKeyName(AppUser user, String preferredKeyName) {
-        List<UserSshKey> userKeys = userSshKeyRepository.findAllByUserEmail(user.email());
+        List<UserSshKey> userKeys = sshKeyRepository.findAllByUserEmailOrderByUploadedAtDesc(user.email().toLowerCase())
+                .stream()
+                .map(UserSshKey::fromEntity)
+                .toList();
         if (userKeys.isEmpty()) {
             throw new ResponseStatusException(BAD_REQUEST, "Upload an SSH public key first");
         }
@@ -66,7 +72,7 @@ public class UserSshKeyService {
             return userKeys.getFirst().name();
         }
         String normalized = normalizeName(preferredKeyName);
-        if (!userSshKeyRepository.exists(user.email(), normalized)) {
+        if (!sshKeyRepository.existsByUserEmailAndKeyName(user.email().toLowerCase(), normalized)) {
             throw new ResponseStatusException(NOT_FOUND, "SSH key not found");
         }
         return normalized;

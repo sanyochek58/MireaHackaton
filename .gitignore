@@ -4,7 +4,8 @@ dist/
 *.local
 
 *.gradle
-.gradle/
+.gradle/*
+gradle/*
 *build/
 .idea/
 *.iml

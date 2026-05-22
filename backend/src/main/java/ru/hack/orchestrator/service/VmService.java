@@ -11,8 +11,8 @@ import ru.hack.orchestrator.gateway.openstack.NovaClient;
 import ru.hack.orchestrator.gateway.openstack.OpenStackException;
 import ru.hack.orchestrator.gateway.openstack.OpenStackServerInfo;
 import ru.hack.orchestrator.gateway.openstack.OpenStackVolumeInfo;
-import ru.hack.orchestrator.model.VmInstance;
-import ru.hack.orchestrator.repository.vm.VmRepository;
+import ru.hack.orchestrator.domain.VmInstance;
+import ru.hack.orchestrator.repository.VmRepository;
 import ru.hack.orchestrator.security.AppUser;
 
 import java.time.Instant;
@@ -36,7 +36,9 @@ public class VmService {
     private final VmRepository vmRepository;
 
     public VmInstance createVm(AppUser user, CreateVmRequest request) {
-        VmInstance existing = vmRepository.findByUserEmail(user.email()).orElse(null);
+        VmInstance existing = vmRepository.findById(user.email().toLowerCase())
+                .map(VmInstance::fromEntity)
+                .orElse(null);
         if (existing != null && !"DELETED".equalsIgnoreCase(existing.status())) {
             throw new ResponseStatusException(CONFLICT, "You already have an active VM");
         }
@@ -90,12 +92,14 @@ public class VmService {
                 toRamGb(activeServer.ramMb()),
                 Instant.now()
         );
-        vmRepository.save(vm);
+        vmRepository.save(vm.toEntity());
         return vm;
     }
 
     public VmInstance getMyVm(AppUser user) {
-        VmInstance vm = vmRepository.findByUserEmail(user.email()).orElse(null);
+        VmInstance vm = vmRepository.findById(user.email().toLowerCase())
+                .map(VmInstance::fromEntity)
+                .orElse(null);
         if (vm == null) {
             throw new ResponseStatusException(NOT_FOUND, "VM not found");
         }
@@ -115,7 +119,7 @@ public class VmService {
                 server.ramMb() == null ? vm.ramGb() : toRamGb(server.ramMb()),
                 vm.createdAt()
         );
-        vmRepository.save(refreshed);
+        vmRepository.save(refreshed.toEntity());
         return refreshed;
     }
 
@@ -135,7 +139,9 @@ public class VmService {
     }
 
     public void deleteMyVm(AppUser user) {
-        VmInstance vm = vmRepository.findByUserEmail(user.email()).orElse(null);
+        VmInstance vm = vmRepository.findById(user.email().toLowerCase())
+                .map(VmInstance::fromEntity)
+                .orElse(null);
         if (vm == null) {
             throw new ResponseStatusException(NOT_FOUND, "VM not found");
         }
@@ -144,7 +150,7 @@ public class VmService {
         waitForVolumeStatus(vm.volumeId(), "available");
         cinderClient.deleteVolume(vm.volumeId());
 
-        vmRepository.deleteByUserEmail(user.email());
+        vmRepository.deleteById(user.email().toLowerCase());
     }
 
     private OpenStackServerInfo waitForServerActive(String serverId) {

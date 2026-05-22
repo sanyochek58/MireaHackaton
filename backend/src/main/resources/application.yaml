@@ -1,10 +1,18 @@
 spring:
   application:
     name: orchestrator
-  autoconfigure:
-    exclude:
-      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
-      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaConfiguration
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: false
   servlet:
     multipart:
       max-file-size: 16KB
@@ -32,8 +40,8 @@ openstack:
 
 app:
   jwt:
-    secret: ${JWT_SECRET:f7g9h2j4k6l8m0n2p4q6r8s0t2u4v6w8x0y2z4a6b8c0d2e4f6g8h0i2j4k6l8m0}
-    expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+    secret: ${JWT_SECRET}
+    expiration-ms: ${JWT_EXPIRATION_MS}
   system:
     cpu-min: ${SYSTEM_CPU_MIN:1}
     ram-min-gb: ${SYSTEM_RAM_MIN_GB:2}

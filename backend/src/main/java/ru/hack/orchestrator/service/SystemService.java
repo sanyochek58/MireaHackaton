@@ -9,20 +9,20 @@ import ru.hack.orchestrator.dto.response.MetricsHistoryPointResponse;
 import ru.hack.orchestrator.dto.response.SystemImageResponse;
 import ru.hack.orchestrator.dto.response.SystemLimitsResponse;
 import ru.hack.orchestrator.dto.response.SystemMetricsResponse;
+import ru.hack.orchestrator.domain.SystemMetricsSnapshot;
 import ru.hack.orchestrator.gateway.openstack.GlanceClient;
 import ru.hack.orchestrator.gateway.openstack.NovaClient;
 import ru.hack.orchestrator.gateway.openstack.OpenStackImageInfo;
 import ru.hack.orchestrator.gateway.openstack.OpenStackException;
 import ru.hack.orchestrator.gateway.openstack.OpenStackLimitsInfo;
-import ru.hack.orchestrator.model.SystemMetricsSnapshot;
+import ru.hack.orchestrator.model.SystemMetricsSnapshotEntity;
+import ru.hack.orchestrator.repository.SystemMetricsRepository;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.logging.Logger;
 
 @Service
@@ -35,8 +35,7 @@ public class SystemService {
     private final NovaClient novaClient;
     private final GlanceClient glanceClient;
     private final SystemApiProperties systemApiProperties;
-
-    private final CopyOnWriteArrayList<SystemMetricsSnapshot> metricsHistory = new CopyOnWriteArrayList<>();
+    private final SystemMetricsRepository systemMetricsRepository;
 
     @PostConstruct
     public void initMetricsHistory() {
@@ -44,7 +43,7 @@ public class SystemService {
             snapshotMetrics();
         } catch (RuntimeException ignored) {
             // При старте тестов/локальной разработки OpenStack может быть недоступен.
-            metricsHistory.add(new SystemMetricsSnapshot(Instant.now(), 0, 0));
+            systemMetricsRepository.save(new SystemMetricsSnapshotEntity(Instant.now(), 0, 0));
         }
     }
 
@@ -52,7 +51,11 @@ public class SystemService {
     public void snapshotMetrics() {
         try {
             SystemMetricsResponse current = getSystemMetrics();
-            metricsHistory.add(new SystemMetricsSnapshot(Instant.now(), current.cpuPercent(), current.ramPercent()));
+            systemMetricsRepository.save(new SystemMetricsSnapshotEntity(
+                    Instant.now(),
+                    current.cpuPercent(),
+                    current.ramPercent()
+            ));
             cleanupOldSnapshots();
         } catch (RuntimeException e) {
             LOGGER.warning("Не удалось обновить исторические метрики: " + e.getMessage());
@@ -82,13 +85,15 @@ public class SystemService {
             default -> Duration.ofHours(1);
         };
         Instant threshold = Instant.now().minus(requestedRange);
-        List<SystemMetricsSnapshot> filtered = new ArrayList<>();
-        for (SystemMetricsSnapshot snapshot : metricsHistory) {
-            if (!snapshot.timestamp().isBefore(threshold)) {
-                filtered.add(snapshot);
-            }
-        }
-        filtered.sort(Comparator.comparing(SystemMetricsSnapshot::timestamp));
+        List<SystemMetricsSnapshot> filtered = new ArrayList<>(
+                systemMetricsRepository.findAllByTimestampGreaterThanEqualOrderByTimestampAsc(threshold).stream()
+                        .map(snapshot -> new SystemMetricsSnapshot(
+                                snapshot.getTimestamp(),
+                                snapshot.getCpuPercent(),
+                                snapshot.getRamPercent()
+                        ))
+                        .toList()
+        );
         return filtered.stream()
                 .map(snapshot -> new MetricsHistoryPointResponse(
                         snapshot.timestamp(),
@@ -171,6 +176,6 @@ public class SystemService {
 
     private void cleanupOldSnapshots() {
         Instant threshold = Instant.now().minus(Duration.ofHours(systemApiProperties.metricsHistoryRetentionHours()));
-        metricsHistory.removeIf(snapshot -> snapshot.timestamp().isBefore(threshold));
+        systemMetricsRepository.deleteByTimestampBefore(threshold);
     }
 }

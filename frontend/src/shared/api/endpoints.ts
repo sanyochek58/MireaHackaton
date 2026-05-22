@@ -152,6 +152,8 @@ export const api = {
 
   freezeMyStand: () => apiRequest<Stand>('/stands/me/freeze', { method: 'POST' }),
 
+  deleteMyStand: () => apiRequest<void>('/vms/me', { method: 'DELETE' }),
+
   getAdminUsers: () => apiRequest<AdminUser[]>('/admin/users'),
 
   getAdminVms: async () =>

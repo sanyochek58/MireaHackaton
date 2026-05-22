@@ -13,11 +13,11 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
+import ru.hack.orchestrator.domain.UserSshKey;
 import ru.hack.orchestrator.dto.response.SshKeyResponse;
-import ru.hack.orchestrator.security.AppUser;
-import ru.hack.orchestrator.model.UserSshKey;
 import ru.hack.orchestrator.service.CurrentUserService;
 import ru.hack.orchestrator.service.UserSshKeyService;
+import ru.hack.orchestrator.security.AppUser;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;

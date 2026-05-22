@@ -10,7 +10,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
-import ru.hack.orchestrator.repository.user.UserRepository;
+import ru.hack.orchestrator.repository.UserRepository;
 
 import java.io.IOException;
 import java.util.List;

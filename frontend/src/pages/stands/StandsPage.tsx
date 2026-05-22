@@ -37,6 +37,11 @@ export function StandsPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['stands', 'me'] }),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: api.deleteMyStand,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['stands', 'me'] }),
+  });
+
   useEffect(() => {
     if (!stand?.ttlSeconds) return;
     setTtlDisplay(formatDuration(stand.ttlSeconds));
@@ -147,6 +152,13 @@ export function StandsPage() {
                 loading={freezeMutation.isPending}
               >
                 Сообщить о проблеме (заморозка)
+              </Button>
+              <Button
+                variant="danger"
+                onClick={() => deleteMutation.mutate()}
+                loading={deleteMutation.isPending}
+              >
+                Удалить ВМ и том
               </Button>
             </>
           )}

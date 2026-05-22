@@ -8,7 +8,7 @@ import ru.hack.orchestrator.dto.request.LoginRequest;
 import ru.hack.orchestrator.dto.request.RegisterRequest;
 import ru.hack.orchestrator.dto.response.AuthResponse;
 import ru.hack.orchestrator.dto.response.UserResponse;
-import ru.hack.orchestrator.repository.user.UserRepository;
+import ru.hack.orchestrator.repository.UserRepository;
 import ru.hack.orchestrator.security.AppUser;
 import ru.hack.orchestrator.security.JwtService;
 
@@ -26,22 +26,24 @@ public class AuthService {
     private final JwtService jwtService;
 
     public AuthResponse register(RegisterRequest request) {
-        if (userRepository.existsByEmail(request.email())) {
+        String normalizedEmail = request.email().trim().toLowerCase();
+        if (userRepository.existsByEmail(normalizedEmail)) {
             throw new ResponseStatusException(CONFLICT, "User with this email already exists");
         }
         AppUser user = new AppUser(
                 UUID.randomUUID(),
-                request.email().trim().toLowerCase(),
+                normalizedEmail,
                 request.fullName().trim(),
                 passwordEncoder.encode(request.password()),
                 "student"
         );
-        userRepository.save(user);
+        userRepository.save(user.toEntity());
         return toAuthResponse(user);
     }
 
     public AuthResponse login(LoginRequest request) {
         AppUser user = userRepository.findByEmail(request.email().trim().toLowerCase())
+                .map(AppUser::fromEntity)
                 .orElseThrow(() -> new ResponseStatusException(UNAUTHORIZED, "Invalid email or password"));
         if (!passwordEncoder.matches(request.password(), user.passwordHash())) {
             throw new ResponseStatusException(UNAUTHORIZED, "Invalid email or password");

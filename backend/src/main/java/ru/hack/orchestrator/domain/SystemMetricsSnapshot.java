@@ -1,4 +1,4 @@
-package ru.hack.orchestrator.model;
+package ru.hack.orchestrator.domain;
 
 import java.time.Instant;
 
