@@ -33,6 +33,7 @@ export interface ProvisionRequest {
   diskGb: number;
   ttlHours: number;
   network: StandNetworkConfig;
+  keyName: string;
 }
 
 export interface ProvisionResponse {

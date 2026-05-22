@@ -18,3 +18,9 @@ export interface VmAccessKey {
   username: string;
   host: string;
 }
+
+export interface UserSshKey {
+  name: string;
+  fingerprint: string;
+  uploadedAt: string;
+}

@@ -1,8 +1,13 @@
 import { useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useNavigate, Link } from 'react-router-dom';
-import { api } from '@/shared/api/endpoints';
+import {
+  api,
+  type UploadSshKeyPayload,
+  type UploadSshKeyTextPayload,
+} from '@/shared/api/endpoints';
 import { ApiError } from '@/shared/api/client';
+import { useAuthStore } from '@/features/auth/model/authStore';
 import type { OsImageTemplate } from '@/entities/os-image/types';
 import type { StandNetworkConfig } from '@/entities/network/types';
 import { NetworkConfigSection } from '@/features/configurator/ui/NetworkConfigSection/NetworkConfigSection';
@@ -27,6 +32,7 @@ function buildTtlPresets(min: number, max: number, defaultHours: number): number
 
 export function ConfiguratorPage() {
   const navigate = useNavigate();
+  const token = useAuthStore((state) => state.token);
   const [step, setStep] = useState<ConfigStep>('image');
   const [selectedImage, setSelectedImage] = useState<OsImageTemplate | null>(null);
   const [cpu, setCpu] = useState(2);
@@ -35,6 +41,11 @@ export function ConfiguratorPage() {
   const [ttlHours, setTtlHours] = useState(2);
   const [network, setNetwork] = useState<StandNetworkConfig>({ autoAssign: true });
   const [networkError, setNetworkError] = useState<string | null>(null);
+  const [selectedKeyName, setSelectedKeyName] = useState('');
+  const [newKeyName, setNewKeyName] = useState('');
+  const [newKeyFile, setNewKeyFile] = useState<File | null>(null);
+  const [newPublicKeyText, setNewPublicKeyText] = useState('');
+  const [sshKeyError, setSshKeyError] = useState<string | null>(null);
 
   const { data: images = [], isLoading: imagesLoading } = useQuery({
     queryKey: ['system', 'images'],
@@ -51,9 +62,43 @@ export function ConfiguratorPage() {
     queryFn: api.getSystemMetrics,
   });
 
+  const {
+    data: sshKeys = [],
+    isLoading: sshKeysLoading,
+    refetch: refetchSshKeys,
+  } = useQuery({
+    queryKey: ['ssh-keys', 'me'],
+    queryFn: api.getMySshKeys,
+    enabled: !!token,
+  });
+
   const provisionMutation = useMutation({
     mutationFn: api.provisionStand,
     onSuccess: () => navigate('/stands'),
+  });
+
+  const uploadSshKeyMutation = useMutation({
+    mutationFn: (payload: UploadSshKeyPayload) => api.uploadSshKey(payload),
+    onSuccess: async (savedKey) => {
+      setSelectedKeyName(savedKey.name);
+      setNewKeyName('');
+      setNewKeyFile(null);
+      setNewPublicKeyText('');
+      setSshKeyError(null);
+      await refetchSshKeys();
+    },
+  });
+
+  const uploadSshKeyTextMutation = useMutation({
+    mutationFn: (payload: UploadSshKeyTextPayload) => api.uploadSshKeyText(payload),
+    onSuccess: async (savedKey) => {
+      setSelectedKeyName(savedKey.name);
+      setNewKeyName('');
+      setNewKeyFile(null);
+      setNewPublicKeyText('');
+      setSshKeyError(null);
+      await refetchSshKeys();
+    },
   });
 
   const selectImage = (image: OsImageTemplate) => {
@@ -79,6 +124,10 @@ export function ConfiguratorPage() {
 
   const handleProvision = () => {
     if (!selectedImage) return;
+    if (!selectedKeyName) {
+      setSshKeyError('Перед развёртыванием выберите SSH-ключ или загрузите новый.');
+      return;
+    }
     const normalized = normalizeNetworkInput(network);
     const validationError = validateManualNetwork(normalized);
     if (validationError) {
@@ -93,6 +142,42 @@ export function ConfiguratorPage() {
       diskGb: Math.max(diskGb, selectedImage.minDiskGb),
       ttlHours: Math.min(ttlMax, Math.max(ttlMin, ttlHours)),
       network: normalized,
+      keyName: selectedKeyName,
+    });
+  };
+
+  const handleUploadSshKey = () => {
+    const trimmedName = newKeyName.trim();
+    if (!trimmedName) {
+      setSshKeyError('Укажите имя SSH-ключа.');
+      return;
+    }
+    if (!newKeyFile) {
+      setSshKeyError('Выберите файл публичного ключа.');
+      return;
+    }
+    setSshKeyError(null);
+    uploadSshKeyMutation.mutate({
+      keyName: trimmedName,
+      file: newKeyFile,
+    });
+  };
+
+  const handleUploadSshKeyText = () => {
+    const trimmedName = newKeyName.trim();
+    const trimmedPublicKey = newPublicKeyText.trim();
+    if (!trimmedName) {
+      setSshKeyError('Укажите имя SSH-ключа.');
+      return;
+    }
+    if (!trimmedPublicKey) {
+      setSshKeyError('Вставьте публичный SSH-ключ в текстовое поле.');
+      return;
+    }
+    setSshKeyError(null);
+    uploadSshKeyTextMutation.mutate({
+      keyName: trimmedName,
+      publicKey: trimmedPublicKey,
     });
   };
 
@@ -100,6 +185,14 @@ export function ConfiguratorPage() {
   const errorMessage =
     provisionMutation.error instanceof ApiError
       ? provisionMutation.error.message
+      : null;
+  const uploadErrorMessage =
+    uploadSshKeyMutation.error instanceof ApiError
+      ? uploadSshKeyMutation.error.message
+      : null;
+  const uploadTextErrorMessage =
+    uploadSshKeyTextMutation.error instanceof ApiError
+      ? uploadSshKeyTextMutation.error.message
       : null;
 
   const diskMin = Math.max(
@@ -266,6 +359,86 @@ export function ConfiguratorPage() {
             }}
             emphasizeNetwork={selectedImage.family === 'network'}
           />
+
+          <section className={styles.sshKeySection}>
+            <div className={styles.sectionHead}>
+              <h3 className={styles.sectionTitle}>SSH-ключ</h3>
+              <p className={styles.sectionDesc}>
+                Для входа в ВМ нужен публичный ключ. Выберите ранее загруженный или
+                добавьте новый.
+              </p>
+            </div>
+
+            <label className={styles.keyLabel}>
+              Выбранный ключ
+              <select
+                className={styles.keySelect}
+                value={selectedKeyName}
+                onChange={(e) => {
+                  setSelectedKeyName(e.target.value);
+                  setSshKeyError(null);
+                }}
+                disabled={sshKeysLoading}
+              >
+                <option value="">Выберите SSH-ключ</option>
+                {sshKeys.map((key) => (
+                  <option key={key.name} value={key.name}>
+                    {key.name} ({key.fingerprint})
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <div className={styles.uploadRow}>
+              <label className={styles.uploadField}>
+                Имя ключа
+                <input
+                  type="text"
+                  value={newKeyName}
+                  placeholder="team06-key"
+                  onChange={(e) => setNewKeyName(e.target.value)}
+                />
+              </label>
+              <label className={styles.uploadField}>
+                Публичный ключ (.pub)
+                <input
+                  type="file"
+                  accept=".pub,text/plain"
+                  onChange={(e) => setNewKeyFile(e.target.files?.[0] ?? null)}
+                />
+              </label>
+              <Button
+                variant="secondary"
+                onClick={handleUploadSshKey}
+                loading={uploadSshKeyMutation.isPending}
+              >
+                Загрузить ключ
+              </Button>
+            </div>
+
+            <label className={styles.textAreaField}>
+              Публичный ключ (строкой)
+              <textarea
+                value={newPublicKeyText}
+                placeholder="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... user@host"
+                onChange={(e) => setNewPublicKeyText(e.target.value)}
+              />
+            </label>
+
+            <div className={styles.textUploadAction}>
+              <Button
+                variant="secondary"
+                onClick={handleUploadSshKeyText}
+                loading={uploadSshKeyTextMutation.isPending}
+              >
+                Добавить ключ строкой
+              </Button>
+            </div>
+
+            {uploadErrorMessage && <Alert variant="danger">{uploadErrorMessage}</Alert>}
+            {uploadTextErrorMessage && <Alert variant="danger">{uploadTextErrorMessage}</Alert>}
+            {sshKeyError && <Alert variant="danger">{sshKeyError}</Alert>}
+          </section>
 
           {networkError && <Alert variant="danger">{networkError}</Alert>}
 

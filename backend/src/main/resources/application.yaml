@@ -1,0 +1,47 @@
+spring:
+  application:
+    name: orchestrator
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaConfiguration
+  servlet:
+    multipart:
+      max-file-size: 16KB
+      max-request-size: 32KB
+  task:
+    scheduling:
+      pool:
+        size: 1
+
+openstack:
+  base-url: ${OPENSTACK_BASE_URL:https://10.77.106.10}
+  project-id: ${OPENSTACK_PROJECT_ID}
+  domain: ${OPENSTACK_DOMAIN}
+  username: ${OPENSTACK_USERNAME}
+  password: ${OPENSTACK_PASSWORD}
+  project-name: ${OPENSTACK_PROJECT_NAME}
+  insecure-ssl: ${OPENSTACK_INSECURE_SSL:false}
+  default-flavor-id: ${OPENSTACK_DEFAULT_FLAVOR_ID:102}
+  default-image-id: ${OPENSTACK_DEFAULT_IMAGE_ID}
+  default-network-id: ${OPENSTACK_DEFAULT_NETWORK_ID}
+  default-security-group: ${OPENSTACK_DEFAULT_SECURITY_GROUP:default}
+  default-volume-size-gb: ${OPENSTACK_DEFAULT_VOLUME_SIZE_GB:150}
+  poll-interval-seconds: ${OPENSTACK_POLL_INTERVAL_SECONDS:5}
+  max-poll-attempts: ${OPENSTACK_MAX_POLL_ATTEMPTS:120}
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:f7g9h2j4k6l8m0n2p4q6r8s0t2u4v6w8x0y2z4a6b8c0d2e4f6g8h0i2j4k6l8m0}
+    expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+  system:
+    cpu-min: ${SYSTEM_CPU_MIN:1}
+    ram-min-gb: ${SYSTEM_RAM_MIN_GB:2}
+    disk-min-gb: ${SYSTEM_DISK_MIN_GB:20}
+    disk-max-gb: ${SYSTEM_DISK_MAX_GB:500}
+    ttl-min-hours: ${SYSTEM_TTL_MIN_HOURS:1}
+    ttl-max-hours: ${SYSTEM_TTL_MAX_HOURS:8}
+    ttl-default-hours: ${SYSTEM_TTL_DEFAULT_HOURS:2}
+    max-stands-fallback: ${SYSTEM_MAX_STANDS_FALLBACK:200}
+    metrics-snapshot-interval-ms: ${SYSTEM_METRICS_SNAPSHOT_INTERVAL_MS:60000}
+    metrics-history-retention-hours: ${SYSTEM_METRICS_HISTORY_RETENTION_HOURS:24}

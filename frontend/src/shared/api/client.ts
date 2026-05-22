@@ -1,6 +1,7 @@
 import { useAuthStore } from '@/features/auth/model/authStore';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '/api';
+const configuredApiBase = import.meta.env.VITE_API_BASE_URL ?? '/api';
+const API_BASE = configuredApiBase.replace(/\/api\/v1\/?$/, '/api').replace(/\/$/, '');
 
 export class ApiError extends Error {
   constructor(
@@ -19,9 +20,13 @@ export async function apiRequest<T>(
 ): Promise<T> {
   const token = useAuthStore.getState().token;
   const headers: HeadersInit = {
-    'Content-Type': 'application/json',
     ...(options.headers ?? {}),
   };
+
+  const isFormDataBody = options.body instanceof FormData;
+  if (!isFormDataBody && !(headers as Record<string, string>)['Content-Type']) {
+    (headers as Record<string, string>)['Content-Type'] = 'application/json';
+  }
 
   if (token) {
     (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
@@ -38,6 +43,9 @@ export async function apiRequest<T>(
       body = await response.json();
     } catch {
       body = undefined;
+    }
+    if (response.status === 401) {
+      useAuthStore.getState().logout();
     }
     const message =
       typeof body === 'object' &&

@@ -42,6 +42,12 @@ export function AppShell() {
               >
                 Мой стенд
               </NavLink>
+              <NavLink
+                to="/ssh-keys"
+                className={({ isActive }) => (isActive ? styles.active : '')}
+              >
+                SSH-ключи
+              </NavLink>
             </>
           )}
           {user?.role === 'admin' && (

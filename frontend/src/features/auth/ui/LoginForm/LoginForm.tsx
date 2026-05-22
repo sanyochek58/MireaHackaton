@@ -70,10 +70,6 @@ export function LoginForm() {
       <p className={styles.footer}>
         Нет аккаунта? <Link to="/register">Зарегистрироваться</Link>
       </p>
-
-      <Alert variant="info">
-        Демо: student@test.ru / student123 или admin@test.ru / admin123
-      </Alert>
     </form>
   );
 }

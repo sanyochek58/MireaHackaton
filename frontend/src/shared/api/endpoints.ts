@@ -8,7 +8,7 @@ import type {
 } from '@/entities/system-metrics/types';
 import type { OsImageTemplate } from '@/entities/os-image/types';
 import type { ProvisionRequest, ProvisionResponse, Stand } from '@/entities/stand/types';
-import type { VirtualMachine, VmAccessKey } from '@/entities/vm/types';
+import type { UserSshKey, VirtualMachine, VmAccessKey } from '@/entities/vm/types';
 
 export interface LoginPayload {
   email: string;
@@ -21,9 +21,71 @@ export interface RegisterPayload {
   fullName: string;
 }
 
+export interface UploadSshKeyPayload {
+  keyName: string;
+  file: File;
+}
+
+export interface UploadSshKeyTextPayload {
+  keyName: string;
+  publicKey: string;
+}
+
 export interface AuthResponse {
   token: string;
   user: User;
+}
+
+interface VmApiResponse {
+  serverId: string;
+  volumeId: string;
+  name: string;
+  keyName: string;
+  status: string;
+  ipAddress: string | null;
+  createdAt: string;
+}
+
+interface AdminVmApiResponse {
+  id: string;
+  userId: string;
+  userName: string;
+  name: string;
+  state: Stand['state'];
+  ip: string;
+  cpu: number;
+  ramGb: number;
+}
+
+function mapVmStatusToStandState(status: string): Stand['state'] {
+  const normalizedStatus = status.toUpperCase();
+  if (normalizedStatus === 'ACTIVE') {
+    return 'ready';
+  }
+  if (normalizedStatus === 'ERROR') {
+    return 'cleaning';
+  }
+  return 'deploying';
+}
+
+function mapVmResponseToStand(vm: VmApiResponse): Stand {
+  return {
+    id: vm.serverId,
+    userId: 'current-user',
+    state: mapVmStatusToStandState(vm.status),
+    templateId: '',
+    imageName: 'OpenStack VM',
+    imageVersion: 'N/A',
+    cpu: 0,
+    ramGb: 0,
+    diskGb: 150,
+    durationHours: 2,
+    network: { autoAssign: true },
+    ip: vm.ipAddress ?? undefined,
+    ttlSeconds: 2 * 60 * 60,
+    frozenUntil: null,
+    createdAt: vm.createdAt,
+  };
 }
 
 export const api = {
@@ -48,20 +110,54 @@ export const api = {
       body: JSON.stringify(payload),
     }),
 
-  getMyStand: () => apiRequest<Stand | null>('/stands/me'),
+  getMyStand: async () => {
+    try {
+      const vm = await apiRequest<VmApiResponse>('/vms/me');
+      return mapVmResponseToStand(vm);
+    } catch {
+      return null;
+    }
+  },
 
-  provisionStand: (payload: ProvisionRequest) =>
-    apiRequest<ProvisionResponse>('/stands/provision', {
+  provisionStand: async (payload: ProvisionRequest) => {
+    const requestPayload = {
+      name: `stand-${Date.now()}`,
+      keyName: payload.keyName,
+      imageId: '',
+      flavorId: '',
+      networkId: '',
+      securityGroup: '',
+      volumeSizeGb: payload.diskGb,
+    };
+    const vm = await apiRequest<VmApiResponse>('/vms', {
       method: 'POST',
-      body: JSON.stringify(payload),
-    }),
+      body: JSON.stringify(requestPayload),
+    });
+    return {
+      standId: vm.serverId,
+      taskId: vm.volumeId,
+    } satisfies ProvisionResponse;
+  },
 
-  freezeMyStand: () =>
-    apiRequest<Stand>('/stands/me/freeze', { method: 'POST' }),
+  freezeMyStand: () => apiRequest<Stand>('/stands/me/freeze', { method: 'POST' }),
 
   getAdminUsers: () => apiRequest<AdminUser[]>('/admin/users'),
 
-  getAdminVms: () => apiRequest<VirtualMachine[]>('/admin/vms'),
+  getAdminVms: async () =>
+    apiRequest<AdminVmApiResponse[]>('/vms/admin/list').then((vms) =>
+      vms.map(
+        (vm): VirtualMachine => ({
+          id: vm.id,
+          userId: vm.userId,
+          userName: vm.userName,
+          name: vm.name,
+          state: vm.state,
+          ip: vm.ip,
+          cpu: vm.cpu,
+          ramGb: vm.ramGb,
+        }),
+      ),
+    ),
 
   rebootVm: (id: string) =>
     apiRequest<void>(`/admin/vms/${id}/reboot`, { method: 'POST' }),
@@ -85,5 +181,23 @@ export const api = {
     apiRequest<LifecycleSettings>('/admin/settings/lifecycle', {
       method: 'PUT',
       body: JSON.stringify(settings),
+    }),
+
+  getMySshKeys: () => apiRequest<UserSshKey[]>('/ssh-keys/me'),
+
+  uploadSshKey: (payload: UploadSshKeyPayload) => {
+    const formData = new FormData();
+    formData.append('keyName', payload.keyName);
+    formData.append('file', payload.file);
+    return apiRequest<UserSshKey>('/ssh-keys/upload', {
+      method: 'POST',
+      body: formData,
+    });
+  },
+
+  uploadSshKeyText: (payload: UploadSshKeyTextPayload) =>
+    apiRequest<UserSshKey>('/ssh-keys/upload-text', {
+      method: 'POST',
+      body: JSON.stringify(payload),
     }),
 };
