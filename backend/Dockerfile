@@ -1,4 +1,4 @@
-FROM eclipse-temurin:25-jdk-alpine AS builder
+FROM eclipse-temurin:21-jdk-alpine AS builder
 
 RUN apk add --no-cache bash
 
@@ -25,7 +25,7 @@ RUN --mount=type=cache,target=/cache/gradle \
 
 RUN java -Djarmode=layertools -jar build/libs/*.jar extract --destination extracted
 
-FROM eclipse-temurin:25-jre-alpine
+FROM eclipse-temurin:21-jre-alpine
 
 RUN addgroup -S spring && adduser -S spring -G spring
 

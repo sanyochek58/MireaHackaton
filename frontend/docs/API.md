@@ -76,11 +76,73 @@
 Тело: `{ "email", "password" }`  
 Ответ: как register.
 
-## Student
+## Student — виртуальная машина (актуальный бэкенд)
+
+### GET /api/vms/me
+
+Текущая ВМ пользователя. Используется на странице «Мой стенд» (блок «Сеть»).
+
+```json
+{
+  "serverId": "uuid",
+  "volumeId": "uuid",
+  "name": "stand-123",
+  "keyName": "my-lab-key",
+  "status": "ACTIVE",
+  "ipAddress": "10.10.0.15",
+  "createdAt": "2026-05-21T12:00:00Z"
+}
+```
+
+- `ipAddress` → IP в UI  
+- `keyName` → имя SSH keypair в OpenStack  
+- `status`: `ACTIVE` | `BUILD` | `ERROR` → маппится в FSM стенда  
+
+### POST /api/vms
+
+Создание ВМ. Тело (`CreateVmRequest`):
+
+```json
+{
+  "name": "stand-123",
+  "keyName": "my-lab-key",
+  "imageId": "",
+  "flavorId": "",
+  "networkId": "",
+  "securityGroup": "",
+  "volumeSizeGb": 40
+}
+```
+
+### DELETE /api/vms/me
+
+Удаление своей ВМ.
+
+### GET /api/ssh-keys/me
+
+Список загруженных публичных SSH-ключей (для отображения отпечатка в блоке «Сеть»):
+
+```json
+[
+  { "name": "my-lab-key", "fingerprint": "SHA256:...", "uploadedAt": "..." }
+]
+```
+
+### POST /api/ssh-keys/upload
+
+`multipart/form-data`: `keyName`, `file` (публичный ключ, до 16 KB).
+
+### POST /api/ssh-keys/upload-text
+
+JSON: `{ "keyName", "publicKey" }`.
+
+---
+
+## Student (устаревшие моки MSW)
 
 ### GET /stands/me
 
-Текущий стенд или `null`.
+Текущий стенд или `null` — только при `VITE_ENABLE_MSW=true`.
 
 ### POST /stands/provision
 

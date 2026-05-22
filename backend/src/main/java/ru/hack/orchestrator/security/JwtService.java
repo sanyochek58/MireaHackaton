@@ -39,12 +39,12 @@ public class JwtService {
         Date now = new Date();
         Date expiresAt = new Date(now.getTime() + expirationMs);
         return Jwts.builder()
-                .setSubject(user.email())
+                .subject(user.email())
                 .claim("uid", user.id().toString())
                 .claim("fullName", user.fullName())
                 .claim("role", user.role())
-                .setIssuedAt(now)
-                .setExpiration(expiresAt)
+                .issuedAt(now)
+                .expiration(expiresAt)
                 .signWith(signingKey)
                 .compact();
     }
@@ -56,14 +56,16 @@ public class JwtService {
     public boolean isTokenValid(String token, String expectedEmail) {
         Claims claims = parseClaims(token);
         Date expiration = claims.getExpiration();
-        return expectedEmail.equalsIgnoreCase(claims.getSubject()) && expiration.after(new Date());
+        return expectedEmail.equalsIgnoreCase(claims.getSubject())
+                && expiration != null
+                && expiration.after(new Date());
     }
 
     private Claims parseClaims(String token) {
-        return Jwts.parserBuilder()
-                .setSigningKey(signingKey)
+        return Jwts.parser()
+                .verifyWith(signingKey)
                 .build()
-                .parseClaimsJws(token)
-                .getBody();
+                .parseSignedClaims(token)
+                .getPayload();
     }
 }

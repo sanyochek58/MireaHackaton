@@ -20,6 +20,9 @@ export interface Stand {
   diskGb: number;
   durationHours: number;
   network: StandNetworkConfig;
+  vmName?: string;
+  keyName?: string;
+  volumeId?: string;
   ip?: string;
   ttlSeconds: number;
   frozenUntil?: string | null;

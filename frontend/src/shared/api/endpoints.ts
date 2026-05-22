@@ -7,8 +7,10 @@ import type {
   SystemMetrics,
 } from '@/entities/system-metrics/types';
 import type { OsImageTemplate } from '@/entities/os-image/types';
+import type { StandNetworkConfig } from '@/entities/network/types';
 import type { ProvisionRequest, ProvisionResponse, Stand } from '@/entities/stand/types';
 import type { UserSshKey, VirtualMachine, VmAccessKey } from '@/entities/vm/types';
+import { loadProvisionNetwork, saveProvisionNetwork } from '@/shared/lib/standNetworkStorage';
 
 export interface LoginPayload {
   email: string;
@@ -36,6 +38,7 @@ export interface AuthResponse {
   user: User;
 }
 
+/** Ответ GET /api/vms/me и POST /api/vms — см. VmResponse в бэкенде */
 interface VmApiResponse {
   serverId: string;
   volumeId: string;
@@ -44,6 +47,10 @@ interface VmApiResponse {
   status: string;
   ipAddress: string | null;
   createdAt: string;
+}
+
+function resolveStandNetwork(): StandNetworkConfig {
+  return loadProvisionNetwork() ?? { autoAssign: true };
 }
 
 interface AdminVmApiResponse {
@@ -80,7 +87,10 @@ function mapVmResponseToStand(vm: VmApiResponse): Stand {
     ramGb: 0,
     diskGb: 150,
     durationHours: 2,
-    network: { autoAssign: true },
+    network: resolveStandNetwork(),
+    vmName: vm.name,
+    keyName: vm.keyName,
+    volumeId: vm.volumeId,
     ip: vm.ipAddress ?? undefined,
     ttlSeconds: 2 * 60 * 60,
     frozenUntil: null,
@@ -120,10 +130,11 @@ export const api = {
   },
 
   provisionStand: async (payload: ProvisionRequest) => {
+    saveProvisionNetwork(payload.network);
     const requestPayload = {
       name: `stand-${Date.now()}`,
       keyName: payload.keyName,
-      imageId: '',
+      imageId: payload.templateId || '',
       flavorId: '',
       networkId: '',
       securityGroup: '',

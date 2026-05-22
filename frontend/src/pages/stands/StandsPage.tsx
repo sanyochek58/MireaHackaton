@@ -3,7 +3,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { api } from '@/shared/api/endpoints';
 import { formatDateTime, formatDuration, formatHoursRu } from '@/shared/lib/format';
-import { formatNetworkSummary } from '@/shared/lib/network';
+import { useAuthStore } from '@/features/auth/model/authStore';
+import { StandNetworkCard } from '@/features/stands/ui/StandNetworkCard/StandNetworkCard';
 import { StandStepper } from '@/features/stands/ui/StandStepper/StandStepper';
 import { Alert, Button, Card, StatusBadge } from '@/shared/ui';
 import styles from './StandsPage.module.scss';
@@ -12,6 +13,7 @@ const TERMINAL_STATES = new Set(['ready', 'frozen', 'idle', 'cleaning']);
 
 export function StandsPage() {
   const queryClient = useQueryClient();
+  const token = useAuthStore((s) => s.token);
   const [ttlDisplay, setTtlDisplay] = useState('');
 
   const { data: stand, isLoading } = useQuery({
@@ -22,6 +24,12 @@ export function StandsPage() {
       if (!state || TERMINAL_STATES.has(state)) return false;
       return 4000;
     },
+  });
+
+  const { data: sshKeys = [] } = useQuery({
+    queryKey: ['ssh-keys', 'me'],
+    queryFn: api.getMySshKeys,
+    enabled: !!token && !!stand && stand.state !== 'idle',
   });
 
   const freezeMutation = useMutation({
@@ -78,36 +86,7 @@ export function StandsPage() {
       </Card>
 
       <div className={styles.grid}>
-        <Card title="Сеть">
-          <dl className={styles.dl}>
-            <div className={styles.fullWidth}>
-              <dt>Конфигурация</dt>
-              <dd>{formatNetworkSummary(stand.network)}</dd>
-            </div>
-            {!stand.network.autoAssign && (
-              <>
-                {stand.network.vlan && (
-                  <div>
-                    <dt>VLAN</dt>
-                    <dd>{stand.network.vlan}</dd>
-                  </div>
-                )}
-                {stand.network.subnet && (
-                  <div>
-                    <dt>Подсеть</dt>
-                    <dd>{stand.network.subnet}</dd>
-                  </div>
-                )}
-                {stand.network.dns && (
-                  <div>
-                    <dt>DNS</dt>
-                    <dd>{stand.network.dns}</dd>
-                  </div>
-                )}
-              </>
-            )}
-          </dl>
-        </Card>
+        <StandNetworkCard stand={stand} sshKeys={sshKeys} />
 
         <Card title="Образ и ресурсы">
           <dl className={styles.dl}>
@@ -129,10 +108,10 @@ export function StandsPage() {
               <dt>Диск</dt>
               <dd>{stand.diskGb} GB</dd>
             </div>
-            {stand.ip && (
+            {stand.vmName && (
               <div>
-                <dt>IP</dt>
-                <dd>{stand.ip}</dd>
+                <dt>Имя ВМ</dt>
+                <dd>{stand.vmName}</dd>
               </div>
             )}
           </dl>
